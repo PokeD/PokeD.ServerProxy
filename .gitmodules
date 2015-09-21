@@ -1,0 +1,4 @@
+[submodule "PokeD.Core"]
+	path = PokeD.Core
+	url = https://github.com/PokeD/PokeD.Core.git
+	branch = master
