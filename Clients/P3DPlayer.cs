@@ -1,13 +1,10 @@
 using System;
-using System.Collections.Generic;
-
 using PokeD.Core.Interfaces;
 using PokeD.Core.Packets;
 using PokeD.Core.Wrappers;
+using PokeD.ServerProxy.IO;
 
-using PokeD.Server.IO;
-
-namespace PokeD.Server.Clients
+namespace PokeD.ServerProxy.Clients
 {
     public class P3DPlayer
     {

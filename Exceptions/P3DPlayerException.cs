@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace PokeD.Server.Exceptions
+namespace PokeD.ServerProxy.Exceptions
 {
     public class P3DPlayerException : Exception
     {

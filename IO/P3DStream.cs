@@ -3,13 +3,12 @@ using System.Globalization;
 using System.IO;
 using System.Numerics;
 using System.Text;
-
 using PokeD.Core.Data;
 using PokeD.Core.Interfaces;
 using PokeD.Core.Packets;
 using PokeD.Core.Wrappers;
 
-namespace PokeD.Server.IO
+namespace PokeD.ServerProxy.IO
 {
     public sealed class P3DStream : IPacketStream
     {

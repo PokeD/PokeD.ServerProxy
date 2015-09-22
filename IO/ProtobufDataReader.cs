@@ -2,13 +2,11 @@
 using System.IO;
 using System.Numerics;
 using System.Text;
-
 using PokeD.Core.Data;
 using PokeD.Core.Interfaces;
+using PokeD.ServerProxy.Exceptions;
 
-using PokeD.Server.Exceptions;
-
-namespace PokeD.Server.IO
+namespace PokeD.ServerProxy.IO
 {
     public sealed class ProtobufDataReader : IPacketDataReader
     {
