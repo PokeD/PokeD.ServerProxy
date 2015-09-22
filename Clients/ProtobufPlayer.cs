@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Security;
@@ -8,27 +9,33 @@ using PokeD.Core.Interfaces;
 using PokeD.Core.Packets;
 using PokeD.Core.Packets.Encryption;
 using PokeD.Core.Packets.Server;
-using PokeD.Core.Packets.Shared;
 using PokeD.Core.Wrappers;
 
-using PokeD.ServerProxy.Exceptions;
 using PokeD.ServerProxy.IO;
 
 namespace PokeD.ServerProxy.Clients
 {
     public class ProtobufPlayer
     {
-        public bool Connected => Stream.Connected;
+        [Flags]
+        enum JoinState
+        {
+            JoinGameSent        = 1,
+            JoinedGame          = 2,
+            QueryPacketsEmpty   = 4
+        }
 
+
+        public bool Connected => Stream.Connected;
         public string IP => Client.IP;
 
 
         INetworkTCPClient Client { get; }
         IPacketStream Stream { get; }
 
-        bool JoinedGame { get; set; }
-        bool JoinedGameSent { get; set; }
+        JoinState State { get; set; }
 
+        Queue<ProtobufPacket> ToSend = new Queue<ProtobufPacket>();
 
         readonly ServerProxy _proxy;
 
@@ -57,24 +64,20 @@ namespace PokeD.ServerProxy.Clients
                 return;
             }
 
-            if (Stream.Connected && Stream.DataAvailable > 0)
+            if (Stream.DataAvailable > 0)
             {
-                try
+                var dataLength = Stream.ReadVarInt();
+                if (dataLength == 0)
                 {
-                    var dataLength = Stream.ReadVarInt();
-                    if (dataLength == 0)
-                    {
-                        Logger.Log(LogType.GlobalError, $"Protobuf Reading Error: Packet Length size is 0. Disconnecting from server.");
-                        SendPacket(new KickedPacket { Reason = $"Packet Length size is 0!" });
-                        _proxy.Disconnect();
-                        return;
-                    }
-
-                    var data = Stream.ReadByteArray(dataLength);
-
-                    HandleData(data);
+                    Logger.Log(LogType.GlobalError, $"Protobuf Reading Error: Packet Length size is 0. Disconnecting from server.");
+                    SendPacket(new KickedPacket {Reason = $"Packet Length size is 0!"});
+                    _proxy.Disconnect();
+                    return;
                 }
-                catch (ProtobufReadingException ex) { Logger.Log(LogType.GlobalError, $"Protobuf Reading Exeption: {ex.Message}. Disconnecting from server."); _proxy.Disconnect(); }
+
+                var data = Stream.ReadByteArray(dataLength);
+
+                HandleData(data);
             }
         }
 
@@ -103,33 +106,34 @@ namespace PokeD.ServerProxy.Clients
                 var packet = PlayerResponse.Packets[id]().ReadPacket(reader);
                 packet.Origin = origin;
 
+
+                HandlePacket(packet);
+
 #if DEBUG
                 FromServer.Add(packet);
 #endif
-
-
-                if (packet is JoiningGameResponsePacket)
-                {
-                    HandleJoiningGameResponse((JoiningGameResponsePacket) packet);
-                    return;
-                }
-
-                if (packet is EncryptionRequestPacket)
-                {
-                    HandleEncryptionRequest((EncryptionRequestPacket) packet);
-                    return;
-                }
-
-                HandlePacket(packet);
             }
         }
         private void HandlePacket(ProtobufPacket packet)
         {
-            _proxy.SendPacketToOrigin(packet);
+            switch ((PlayerPacketTypes) packet.ID)
+            {
+                case PlayerPacketTypes.JoiningGameResponse:
+                    HandleJoiningGameResponse((JoiningGameResponsePacket) packet);
+                    break;
+
+                case PlayerPacketTypes.EncryptionRequest:
+                    HandleEncryptionRequest((EncryptionRequestPacket) packet);
+                    break;
+
+                default:
+                    _proxy.SendPacketToOrigin(packet);
 
 #if DEBUG
-            ToOrigin.Add(packet);
+                    ToOrigin.Add(packet);
 #endif
+                    break;
+            }
         }
         private void HandleEncryptionRequest(EncryptionRequestPacket packet)
         {
@@ -141,48 +145,63 @@ namespace PokeD.ServerProxy.Clients
             var signedSecret = pkcs.SignData(sharedKey);
             var signedVerify = pkcs.SignData(packet.VerificationToken);
 
-            SendPacket(new EncryptionResponsePacket { SharedSecret = signedSecret, VerificationToken = signedVerify });
+            SendPacketDirect(new EncryptionResponsePacket { SharedSecret = signedSecret, VerificationToken = signedVerify });
 
             Stream.InitializeEncryption(sharedKey);
-            JoinedGame = true;
+
+            State |= JoinState.JoinedGame;
         }
         private void HandleJoiningGameResponse(JoiningGameResponsePacket packet)
         {
             if(!packet.EncryptionEnabled)
-                JoinedGame = true;
+                State |= JoinState.JoinedGame;
         }
 
         private void JoinGame()
         {
-            SendPacket(new JoiningGameRequestPacket());
-            JoinedGameSent = true;
+            SendPacketDirect(new JoiningGameRequestPacket());
+
+            State |= JoinState.JoinGameSent;
         }
 
 
-        Queue<ProtobufPacket> ToSend = new Queue<ProtobufPacket>();
         public void SendPacket(ProtobufPacket packet)
+        {
+            if ((PlayerPacketTypes) packet.ID == PlayerPacketTypes.ServerDataRequest)
+            {
+                SendPacketDirect(packet);
+                return;
+            }
+
+            if (!State.HasFlag(JoinState.JoinGameSent))
+                JoinGame();
+
+            if (!State.HasFlag(JoinState.JoinedGame))
+            {
+                ToSend.Enqueue(packet);
+                return;
+            }
+
+            if (!State.HasFlag(JoinState.QueryPacketsEmpty))
+            {
+                while (ToSend.Count > 0)
+                    SendPacketDirect(ToSend.Dequeue());
+
+                State |= JoinState.QueryPacketsEmpty;
+            }
+
+            SendPacketDirect(packet);
+
+        }
+        private void SendPacketDirect(ProtobufPacket packet)
         {
             if (Stream.Connected)
             {
-                if (!JoinedGameSent && packet is GameDataPacket)
-                    JoinGame();
-                
-                if (!JoinedGame)
-                    ToSend.Enqueue(packet);
-                else
-                {
-                    while (ToSend.Count > 0)
-                    {
-                        var pp = ToSend.Dequeue();
-                        Stream.SendPacket(ref pp);
-                    }
-
-                    Stream.SendPacket(ref packet);
+                Stream.SendPacket(ref packet);
 
 #if DEBUG
-                    ToServer.Add(packet);
+                ToServer.Add(packet);
 #endif
-                }
             }
         }
 

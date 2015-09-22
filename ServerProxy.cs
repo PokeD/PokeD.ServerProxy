@@ -55,7 +55,6 @@ namespace PokeD.ServerProxy
 
             return status;
         }
-
         public bool Stop()
         {
             var status = FileSystemWrapper.SaveSettings(FileName, this);
@@ -82,16 +81,13 @@ namespace PokeD.ServerProxy
             {
                 if (P3DListener.AvailableClients)
                 {
-                    //if (OriginPlayer == null || (OriginPlayer != null && !OriginPlayer.Connected))
-                    //{
-                    //    OriginPlayer?.Dispose();
-                        OriginPlayer = new P3DPlayer(P3DListener.AcceptNetworkTCPClient(), this);
+                    OriginPlayer?.Dispose();
+                    OriginPlayer = new P3DPlayer(P3DListener.AcceptNetworkTCPClient(), this);
 
-                        var client = NetworkTCPClientWrapper.NewInstance();
-                        client.Connect(ServerIP, ServerPort);
-                    //    ProxyPlayer?.Dispose();
-                        ProxyPlayer = new ProtobufPlayer(client, this);
-                    //}
+                    var client = NetworkTCPClientWrapper.NewInstance();
+                    client.Connect(ServerIP, ServerPort);
+                    ProxyPlayer?.Dispose();
+                    ProxyPlayer = new ProtobufPlayer(client, this);
                 }
 
 
