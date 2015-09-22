@@ -96,8 +96,6 @@ namespace PokeD.ServerProxy.Clients
         {
             if (Stream.Connected)
             {
-                packet.ProtocolVersion = P3DProtocolVersion;
-
                 Stream.SendPacket(ref packet);
 
 #if DEBUG

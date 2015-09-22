@@ -242,7 +242,7 @@ namespace PokeD.ServerProxy.IO
 
             var stringBuilder = new StringBuilder();
 
-            stringBuilder.Append(packet.ProtocolVersion.ToString(CultureInfo));
+            stringBuilder.Append(P3DPacket.ProtocolVersion.ToString(CultureInfo));
             stringBuilder.Append("|");
             stringBuilder.Append(packet.ID.ToString());
             stringBuilder.Append("|");
