@@ -1,4 +1,6 @@
-﻿using Org.BouncyCastle.Crypto;
+﻿using System.Collections.Generic;
+
+using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Security;
 
 using PokeD.Core;
@@ -43,17 +45,28 @@ namespace PokeD.ServerProxy.Clients
         public void Update()
         {
             if (!Stream.Connected)
+            {
                 _proxy.Disconnect();
+                return;
+            }
 
             if (Stream.Connected && Stream.DataAvailable > 0)
             {
-                var dataLength = Stream.ReadVarInt();
-                if (dataLength == 0)
-                    throw new ProtobufPlayerException("Reading error: Packet Length size is 0");
+                try
+                {
+                    var dataLength = Stream.ReadVarInt();
+                    if (dataLength == 0)
+                    {
+                        Logger.Log(LogType.GlobalError, $"Protobuf Reading Error: Packet Length size is 0. Disconnecting from server.");
+                        _proxy.Disconnect();
+                        return;
+                    }
 
-                var data = Stream.ReadByteArray(dataLength);
+                    var data = Stream.ReadByteArray(dataLength);
 
-                HandleData(data);
+                    HandleData(data);
+                }
+                catch (ProtobufReadingException ex) { Logger.Log(LogType.GlobalError, $"Protobuf Reading Exeption: {ex.Message}. Disconnecting from server."); }
             }
         }
 
@@ -61,21 +74,30 @@ namespace PokeD.ServerProxy.Clients
         private void HandleData(byte[] data)
         {
             if (data == null)
+            {
+                Logger.Log(LogType.GlobalError, $"Protobuf Reading Error: Packet Data is null.");
                 return;
+            }
 
             using (var reader = new ProtobufDataReader(data))
             {
                 var id = reader.ReadVarInt();
                 var origin = reader.ReadVarInt();
+
+                if (id >= PlayerResponse.Packets.Length)
+                {
+                    Logger.Log(LogType.GlobalError, $"Protobuf Reading Error: Packet ID {id} is not correct, Packet Data: {data}. Disconnecting from server.");
+                    _proxy.Disconnect();
+                    return;
+                }
+
                 var packet = PlayerResponse.Packets[id]().ReadPacket(reader);
                 packet.Origin = origin;
-
 
                 if (id == (int) PlayerPacketTypes.EncryptionResponse)
                     HandleEncryption((EncryptionRequestPacket) packet);
                 else
                     HandlePacket(packet);
-                
 
 #if DEBUG
                 FromServer.Add(packet);

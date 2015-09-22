@@ -34,11 +34,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Logger.cs" />
     <Compile Include="Clients\ProtobufPlayer.cs" />
-    <Compile Include="Exceptions\P3DPlayerException.cs" />
-    <Compile Include="Exceptions\ProtobufPlayerException.cs" />
     <Compile Include="Clients\P3DPlayer.cs" />
-    <Compile Include="Exceptions\ServerProxyException.cs" />
+    <Compile Include="Exceptions\ProtobufReadingException.cs" />
     <Compile Include="IO\BouncyCastleAES.cs" />
     <Compile Include="IO\ProtobufDataReader.cs" />
     <Compile Include="IO\ProtobufStream.cs" />

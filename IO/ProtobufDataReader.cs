@@ -51,7 +51,7 @@ namespace PokeD.ServerProxy.IO
                 result |= (current & 0x7Fu) << length++ * 7;
 
                 if (length > 5)
-                    throw new ProtobufPlayerException("Reading error: VarInt may not be longer than 28 bits.");
+                    throw new ProtobufReadingException("Reading error: VarInt may not be longer than 28 bits.");
 
                 if ((current & 0x80) != 128)
                     break;
@@ -70,7 +70,7 @@ namespace PokeD.ServerProxy.IO
                 result |= (current & 0x7Fu) << length++ * 7;
 
                 if (length > 5)
-                    throw new ProtobufPlayerException("Reading error: VarInt may not be longer than 60 bits.");
+                    throw new ProtobufReadingException("Reading error: VarInt may not be longer than 60 bits.");
 
                 if ((current & 0x80) != 128)
                     break;

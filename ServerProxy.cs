@@ -48,6 +48,8 @@ namespace PokeD.ServerProxy
         public bool Start()
         {
             var status = FileSystemWrapper.LoadSettings(FileName, this);
+            if (!status)
+                Logger.Log(LogType.Warning, "Failed to load ServerProxy settings!");
 
             ListenToConnectionsThread = ThreadWrapper.StartThread(ListenToConnectionsCycle, true, "ListenToConnectionsThread");
 
@@ -57,6 +59,8 @@ namespace PokeD.ServerProxy
         public bool Stop()
         {
             var status = FileSystemWrapper.SaveSettings(FileName, this);
+            if (!status)
+                Logger.Log(LogType.Warning, "Failed to save ServerProxy settings!");
 
             if (ThreadWrapper.IsRunning(ListenToConnectionsThread))
                 ThreadWrapper.AbortThread(ListenToConnectionsThread);

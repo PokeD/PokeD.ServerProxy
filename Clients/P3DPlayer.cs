@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 using PokeD.Core.Interfaces;
 using PokeD.Core.Packets;
@@ -10,8 +11,6 @@ namespace PokeD.ServerProxy.Clients
 {
     public class P3DPlayer
     {
-        public float P3DProtocolVersion => 0.5f;
-
         public string IP => Client.IP;
 
         public DateTime ConnectionTime { get; } = DateTime.Now;
@@ -44,7 +43,10 @@ namespace PokeD.ServerProxy.Clients
         public void Update()
         {
             if (!Stream.Connected)
+            {
                 _proxy.Disconnect();
+                return;
+            }
 
             if (Stream.Connected && Stream.DataAvailable > 0)
             {
@@ -58,18 +60,27 @@ namespace PokeD.ServerProxy.Clients
         private void HandleData(string data)
         {
             if (string.IsNullOrEmpty(data))
+            {
+                Logger.Log(LogType.GlobalError, $"P3D Reading Error: Packet Data is null or empty.");
                 return;
-            
+            }
+
 
             int id;
             if (P3DPacket.TryParseID(data, out id))
             {
-                P3DPacket packet = null;
-                try { packet = PlayerResponse.Packets[id](); }
-                catch (Exception) { }
-
-                if (packet == null)
+                if (id >= PlayerResponse.Packets.Length)
+                {
+                    Logger.Log(LogType.GlobalError, $"P3D Reading Error: Packet ID {id} is not correct, Packet Data: {data}.");
                     return;
+                }
+
+                var packet = PlayerResponse.Packets[id]();
+                if (packet == null)
+                {
+                    Logger.Log(LogType.GlobalError, $"P3D Reading Error: Packet is null. Packet ID {id}, Packet Data: {data}.");
+                    return;
+                }
 
                 //packet = PlayerResponse.Packets[id]();
                 if (packet.TryParseData(data))
@@ -79,9 +90,12 @@ namespace PokeD.ServerProxy.Clients
                     FromGame.Add(packet);
 #endif
                 }
+                else
+                    Logger.Log(LogType.GlobalError, $"P3D Reading Error: Packet TryParseData error. Packet ID {id}, Packet Data: {data}.");
             }
+            else
+                Logger.Log(LogType.GlobalError, $"P3D Reading Error: Packet TryParseID error. Packet Data: {data}.");
         }
-
         private void HandlePacket(P3DPacket packet)
         {
             _proxy.SendPacketToProxy(packet);
