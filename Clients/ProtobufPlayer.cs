@@ -7,6 +7,8 @@ using PokeD.Core;
 using PokeD.Core.Interfaces;
 using PokeD.Core.Packets;
 using PokeD.Core.Packets.Encryption;
+using PokeD.Core.Packets.Server;
+using PokeD.Core.Packets.Shared;
 using PokeD.Core.Wrappers;
 
 using PokeD.ServerProxy.Exceptions;
@@ -23,6 +25,9 @@ namespace PokeD.ServerProxy.Clients
 
         INetworkTCPClient Client { get; }
         IPacketStream Stream { get; }
+
+        bool JoinedGame { get; set; }
+        bool JoinedGameSent { get; set; }
 
 
         readonly ServerProxy _proxy;
@@ -60,6 +65,7 @@ namespace PokeD.ServerProxy.Clients
                     if (dataLength == 0)
                     {
                         Logger.Log(LogType.GlobalError, $"Protobuf Reading Error: Packet Length size is 0. Disconnecting from server.");
+                        SendPacket(new KickedPacket { Reason = $"Packet Length size is 0!" });
                         _proxy.Disconnect();
                         return;
                     }
@@ -89,6 +95,7 @@ namespace PokeD.ServerProxy.Clients
                 if (id >= PlayerResponse.Packets.Length)
                 {
                     Logger.Log(LogType.GlobalError, $"Protobuf Reading Error: Packet ID {id} is not correct, Packet Data: {data}. Disconnecting from server.");
+                    SendPacket(new KickedPacket { Reason = $"Packet ID {id} is not correct!" });
                     _proxy.Disconnect();
                     return;
                 }
@@ -96,14 +103,24 @@ namespace PokeD.ServerProxy.Clients
                 var packet = PlayerResponse.Packets[id]().ReadPacket(reader);
                 packet.Origin = origin;
 
-                if (id == (int) PlayerPacketTypes.EncryptionRequest)
-                    HandleEncryption((EncryptionRequestPacket) packet);
-                else
-                    HandlePacket(packet);
-
 #if DEBUG
                 FromServer.Add(packet);
 #endif
+
+
+                if (packet is JoiningGameResponsePacket)
+                {
+                    HandleJoiningGameResponse((JoiningGameResponsePacket) packet);
+                    return;
+                }
+
+                if (packet is EncryptionRequestPacket)
+                {
+                    HandleEncryptionRequest((EncryptionRequestPacket) packet);
+                    return;
+                }
+
+                HandlePacket(packet);
             }
         }
         private void HandlePacket(ProtobufPacket packet)
@@ -114,7 +131,7 @@ namespace PokeD.ServerProxy.Clients
             ToOrigin.Add(packet);
 #endif
         }
-        private void HandleEncryption(EncryptionRequestPacket packet)
+        private void HandleEncryptionRequest(EncryptionRequestPacket packet)
         {
             var generator = new CipherKeyGenerator();
             generator.Init(new KeyGenerationParameters(new SecureRandom(), 16 * 8));
@@ -127,18 +144,45 @@ namespace PokeD.ServerProxy.Clients
             SendPacket(new EncryptionResponsePacket { SharedSecret = signedSecret, VerificationToken = signedVerify });
 
             Stream.InitializeEncryption(sharedKey);
+            JoinedGame = true;
+        }
+        private void HandleJoiningGameResponse(JoiningGameResponsePacket packet)
+        {
+            if(!packet.EncryptionEnabled)
+                JoinedGame = true;
+        }
+
+        private void JoinGame()
+        {
+            SendPacket(new JoiningGameRequestPacket());
+            JoinedGameSent = true;
         }
 
 
+        Queue<ProtobufPacket> ToSend = new Queue<ProtobufPacket>();
         public void SendPacket(ProtobufPacket packet)
         {
             if (Stream.Connected)
             {
-                Stream.SendPacket(ref packet);
+                if (!JoinedGameSent && packet is GameDataPacket)
+                    JoinGame();
+                
+                if (!JoinedGame)
+                    ToSend.Enqueue(packet);
+                else
+                {
+                    while (ToSend.Count > 0)
+                    {
+                        var pp = ToSend.Dequeue();
+                        Stream.SendPacket(ref pp);
+                    }
+
+                    Stream.SendPacket(ref packet);
 
 #if DEBUG
-                ToServer.Add(packet);
+                    ToServer.Add(packet);
 #endif
+                }
             }
         }
 
