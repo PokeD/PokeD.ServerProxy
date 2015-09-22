@@ -16,6 +16,8 @@ namespace PokeD.ServerProxy.Clients
 {
     public class ProtobufPlayer
     {
+        public bool Connected => Stream.Connected;
+
         public string IP => Client.IP;
 
 
@@ -66,7 +68,7 @@ namespace PokeD.ServerProxy.Clients
 
                     HandleData(data);
                 }
-                catch (ProtobufReadingException ex) { Logger.Log(LogType.GlobalError, $"Protobuf Reading Exeption: {ex.Message}. Disconnecting from server."); }
+                catch (ProtobufReadingException ex) { Logger.Log(LogType.GlobalError, $"Protobuf Reading Exeption: {ex.Message}. Disconnecting from server."); _proxy.Disconnect(); }
             }
         }
 
@@ -94,7 +96,7 @@ namespace PokeD.ServerProxy.Clients
                 var packet = PlayerResponse.Packets[id]().ReadPacket(reader);
                 packet.Origin = origin;
 
-                if (id == (int) PlayerPacketTypes.EncryptionResponse)
+                if (id == (int) PlayerPacketTypes.EncryptionRequest)
                     HandleEncryption((EncryptionRequestPacket) packet);
                 else
                     HandlePacket(packet);
@@ -104,7 +106,6 @@ namespace PokeD.ServerProxy.Clients
 #endif
             }
         }
-
         private void HandlePacket(ProtobufPacket packet)
         {
             _proxy.SendPacketToOrigin(packet);
@@ -113,7 +114,6 @@ namespace PokeD.ServerProxy.Clients
             ToOrigin.Add(packet);
 #endif
         }
-
         private void HandleEncryption(EncryptionRequestPacket packet)
         {
             var generator = new CipherKeyGenerator();

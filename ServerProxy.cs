@@ -82,11 +82,16 @@ namespace PokeD.ServerProxy
             {
                 if (P3DListener.AvailableClients)
                 {
-                    OriginPlayer = new P3DPlayer(P3DListener.AcceptNetworkTCPClient(), this);
+                    //if (OriginPlayer == null || (OriginPlayer != null && !OriginPlayer.Connected))
+                    //{
+                    //    OriginPlayer?.Dispose();
+                        OriginPlayer = new P3DPlayer(P3DListener.AcceptNetworkTCPClient(), this);
 
-                    var client = NetworkTCPClientWrapper.NewInstance();
-                    client.Connect(ServerIP, ServerPort);
-                    ProxyPlayer = new ProtobufPlayer(client, this);
+                        var client = NetworkTCPClientWrapper.NewInstance();
+                        client.Connect(ServerIP, ServerPort);
+                    //    ProxyPlayer?.Dispose();
+                        ProxyPlayer = new ProtobufPlayer(client, this);
+                    //}
                 }
 
 
@@ -133,7 +138,6 @@ namespace PokeD.ServerProxy
 
             ProxyPlayer?.Dispose();
             ProxyPlayer = null;
-
         }
 
 

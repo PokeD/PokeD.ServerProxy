@@ -11,6 +11,8 @@ namespace PokeD.ServerProxy.Clients
 {
     public class P3DPlayer
     {
+        public bool Connected => Stream.Connected;
+
         public string IP => Client.IP;
 
         public DateTime ConnectionTime { get; } = DateTime.Now;
