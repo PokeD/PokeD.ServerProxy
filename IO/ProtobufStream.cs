@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
 using System.Text;
+
 using ICSharpCode.SharpZipLib.Zip.Compression;
 using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
+
 using PokeD.Core.Data;
 using PokeD.Core.Interfaces;
 using PokeD.Core.Packets;
 using PokeD.Core.Wrappers;
+
 using PokeD.ServerProxy.Exceptions;
 
 namespace PokeD.ServerProxy.IO

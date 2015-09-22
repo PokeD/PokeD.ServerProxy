@@ -1,10 +1,12 @@
 ﻿using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Security;
+
 using PokeD.Core;
 using PokeD.Core.Interfaces;
 using PokeD.Core.Packets;
 using PokeD.Core.Packets.Encryption;
 using PokeD.Core.Wrappers;
+
 using PokeD.ServerProxy.Exceptions;
 using PokeD.ServerProxy.IO;
 

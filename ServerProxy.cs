@@ -7,9 +7,9 @@ using PokeD.Core.Interfaces;
 using PokeD.Core.Packets;
 using PokeD.Core.Wrappers;
 
-using PokeD.Server.Clients;
+using PokeD.ServerProxy.Clients;
 
-namespace PokeD.Server
+namespace PokeD.ServerProxy
 {
     public class ServerProxy : IUpdatable, IDisposable
     {
@@ -113,7 +113,6 @@ namespace PokeD.Server
         {
             OriginPlayer.SendPacket(packet as P3DPacket);
         }
-
         public void SendPacketToProxy(P3DPacket packet)
         {
             while (ProxyPlayer == null)

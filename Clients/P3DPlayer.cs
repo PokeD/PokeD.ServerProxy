@@ -1,7 +1,9 @@
 using System;
+
 using PokeD.Core.Interfaces;
 using PokeD.Core.Packets;
 using PokeD.Core.Wrappers;
+
 using PokeD.ServerProxy.IO;
 
 namespace PokeD.ServerProxy.Clients

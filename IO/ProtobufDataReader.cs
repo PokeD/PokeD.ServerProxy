@@ -2,8 +2,10 @@
 using System.IO;
 using System.Numerics;
 using System.Text;
+
 using PokeD.Core.Data;
 using PokeD.Core.Interfaces;
+
 using PokeD.ServerProxy.Exceptions;
 
 namespace PokeD.ServerProxy.IO
