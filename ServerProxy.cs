@@ -81,13 +81,12 @@ namespace PokeD.ServerProxy
             {
                 if (P3DListener.AvailableClients)
                 {
-                    OriginPlayer?.Dispose();
-                    OriginPlayer = new P3DPlayer(P3DListener.AcceptNetworkTCPClient(), this);
-
-                    var client = NetworkTCPClientWrapper.NewInstance();
-                    client.Connect(ServerIP, ServerPort);
+                    var client = NetworkTCPClientWrapper.NewInstance().Connect(ServerIP, ServerPort);
                     ProxyPlayer?.Dispose();
                     ProxyPlayer = new ProtobufPlayer(client, this);
+
+                    OriginPlayer?.Dispose();
+                    OriginPlayer = new P3DPlayer(P3DListener.AcceptNetworkTCPClient(), this);
                 }
 
 
@@ -109,31 +108,28 @@ namespace PokeD.ServerProxy
 
         public void Update()
         {
-            OriginPlayer?.Update();
-            ProxyPlayer?.Update();
+            if (OriginPlayer != null && ProxyPlayer != null)
+            {
+                OriginPlayer.Update();
+                ProxyPlayer.Update();
+            }
         }
 
 
         public void SendPacketToOrigin(ProtobufPacket packet)
         {
-            OriginPlayer.SendPacket(packet as P3DPacket);
+            OriginPlayer.PacketFromProxy(packet);
         }
         public void SendPacketToProxy(P3DPacket packet)
         {
-            while (ProxyPlayer == null)
-                ThreadWrapper.Sleep(250);
-            
-            ProxyPlayer.SendPacket(packet);
+            ProxyPlayer.PacketFromOrigin(packet);
         }
 
 
         public void Disconnect()
         {
-            OriginPlayer?.Dispose();
-            OriginPlayer = null;
-
-            ProxyPlayer?.Dispose();
-            ProxyPlayer = null;
+            OriginPlayer.Disconnect();
+            ProxyPlayer.Disconnect();
         }
 
 
@@ -141,8 +137,8 @@ namespace PokeD.ServerProxy
         {
             IsDisposing = true;
 
-            OriginPlayer?.Dispose();
-            ProxyPlayer?.Dispose();
+            OriginPlayer.Dispose();
+            ProxyPlayer.Dispose();
         }
     }
 }

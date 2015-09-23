@@ -20,9 +20,10 @@ namespace PokeD.ServerProxy.Clients
         [Flags]
         enum JoinState
         {
-            JoinGameSent        = 1,
-            JoinedGame          = 2,
-            QueryPacketsEmpty   = 4
+            None                = 0x00,
+            JoinGameSent        = 0x01,
+            JoinedGame          = 0x02,
+            QueryPacketsEmpty   = 0x04
         }
 
 
@@ -41,6 +42,7 @@ namespace PokeD.ServerProxy.Clients
 
 #if DEBUG
         // -- Debug -- //
+        List<P3DPacket> FromOrigin { get; } = new List<P3DPacket>();
         List<ProtobufPacket> ToOrigin { get; } = new List<ProtobufPacket>();
 
         List<ProtobufPacket> FromServer { get; } = new List<ProtobufPacket>();
@@ -157,16 +159,19 @@ namespace PokeD.ServerProxy.Clients
                 State |= JoinState.JoinedGame;
         }
 
-        private void JoinGame()
+        public void PacketFromOrigin(P3DPacket packet)
         {
-            SendPacketDirect(new JoiningGameRequestPacket());
+#if DEBUG
+            FromOrigin.Add(packet);
+#endif
 
-            State |= JoinState.JoinGameSent;
+            SendPacket((ProtobufPacket) packet);
         }
-
-
-        public void SendPacket(ProtobufPacket packet)
+        private void SendPacket(ProtobufPacket packet)
         {
+            if (State.HasFlag(JoinState.QueryPacketsEmpty))
+                goto SendPackets;
+
             if ((PlayerPacketTypes) packet.ID == PlayerPacketTypes.ServerDataRequest)
             {
                 SendPacketDirect(packet);
@@ -174,7 +179,11 @@ namespace PokeD.ServerProxy.Clients
             }
 
             if (!State.HasFlag(JoinState.JoinGameSent))
-                JoinGame();
+            {
+                SendPacketDirect(new JoiningGameRequestPacket());
+
+                State |= JoinState.JoinGameSent;
+            }
 
             if (!State.HasFlag(JoinState.JoinedGame))
             {
@@ -190,8 +199,8 @@ namespace PokeD.ServerProxy.Clients
                 State |= JoinState.QueryPacketsEmpty;
             }
 
+        SendPackets:
             SendPacketDirect(packet);
-
         }
         private void SendPacketDirect(ProtobufPacket packet)
         {
@@ -205,6 +214,11 @@ namespace PokeD.ServerProxy.Clients
             }
         }
 
+
+        public void Disconnect()
+        {
+            Stream?.Disconnect();
+        }
 
         public void Dispose()
         {

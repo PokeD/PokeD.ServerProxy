@@ -23,6 +23,7 @@ namespace PokeD.ServerProxy.Clients
 
 #if DEBUG
         // -- Debug -- //
+        List<ProtobufPacket> FromProxy { get; } = new List<ProtobufPacket>();
         List<P3DPacket> ToProxy { get; } = new List<P3DPacket>();
 
         List<P3DPacket> FromGame { get; } = new List<P3DPacket>();
@@ -105,7 +106,15 @@ namespace PokeD.ServerProxy.Clients
         }
 
 
-        public void SendPacket(P3DPacket packet)
+        public void PacketFromProxy(ProtobufPacket packet)
+        {
+#if DEBUG
+            FromProxy.Add(packet);
+#endif
+
+            SendPacket((P3DPacket) packet);
+        }
+        private void SendPacket(P3DPacket packet)
         {
             if (Stream.Connected)
             {
@@ -117,6 +126,11 @@ namespace PokeD.ServerProxy.Clients
             }
         }
 
+
+        public void Disconnect()
+        {
+            Stream?.Disconnect();
+        }
 
         public void Dispose()
         {
