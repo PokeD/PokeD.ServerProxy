@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Diagnostics;
 
+using Aragas.Core.Interfaces;
+using Aragas.Core.Wrappers;
+
 using Newtonsoft.Json;
 
-using PokeD.Core.Interfaces;
 using PokeD.Core.Packets;
-using PokeD.Core.Wrappers;
 
 using PokeD.ServerProxy.Clients;
 
@@ -28,8 +29,8 @@ namespace PokeD.ServerProxy
         public bool IsDisposing { get; private set; }
 
 
-        INetworkTCPServer P3DListener { get; set; }
-        int ListenToConnectionsThread { get; set; }
+        ITCPListener P3DListener { get; set; }
+        IThread ListenToConnectionsThread { get; set; }
 
 
         P3DPlayer OriginPlayer { get; set; }
@@ -51,7 +52,10 @@ namespace PokeD.ServerProxy
             if (!status)
                 Logger.Log(LogType.Warning, "Failed to load ServerProxy settings!");
 
-            ListenToConnectionsThread = ThreadWrapper.StartThread(ListenToConnectionsCycle, true, "ListenToConnectionsThread");
+            ListenToConnectionsThread = ThreadWrapper.CreateThread(ListenToConnectionsCycle);
+            ListenToConnectionsThread.IsBackground = true;
+            ListenToConnectionsThread.Name = "ListenToConnectionsThread";
+            ListenToConnectionsThread.Start();
 
             return status;
         }
@@ -61,8 +65,8 @@ namespace PokeD.ServerProxy
             if (!status)
                 Logger.Log(LogType.Warning, "Failed to save ServerProxy settings!");
 
-            if (ThreadWrapper.IsRunning(ListenToConnectionsThread))
-                ThreadWrapper.AbortThread(ListenToConnectionsThread);
+            if (ListenToConnectionsThread.IsRunning)
+                ListenToConnectionsThread.Abort();
 
             Dispose();
 
@@ -73,7 +77,7 @@ namespace PokeD.ServerProxy
         public static long ClientConnectionsThreadTime { get; private set; }
         private void ListenToConnectionsCycle()
         {
-            P3DListener = NetworkTCPServerWrapper.NewInstance(ConnectionPort);
+            P3DListener = TCPListenerWrapper.CreateTCPListener(ConnectionPort);
             P3DListener.Start();
 
             var watch = Stopwatch.StartNew();
@@ -81,12 +85,12 @@ namespace PokeD.ServerProxy
             {
                 if (P3DListener.AvailableClients)
                 {
-                    var client = NetworkTCPClientWrapper.NewInstance().Connect(ServerIP, ServerPort);
+                    var client = TCPClientWrapper.CreateTCPClient().Connect(ServerIP, ServerPort);
                     ProxyPlayer?.Dispose();
                     ProxyPlayer = new ProtobufPlayer(client, this);
 
                     OriginPlayer?.Dispose();
-                    OriginPlayer = new P3DPlayer(P3DListener.AcceptNetworkTCPClient(), this);
+                    OriginPlayer = new P3DPlayer(P3DListener.AcceptTCPClient(), this);
                 }
 
 
@@ -116,7 +120,7 @@ namespace PokeD.ServerProxy
         }
 
 
-        public void SendPacketToOrigin(ProtobufPacket packet)
+        public void SendPacketToOrigin(ProtobufOriginPacket packet)
         {
             OriginPlayer.PacketFromProxy(packet);
         }

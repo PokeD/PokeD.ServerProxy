@@ -1,11 +1,12 @@
-using System;
 using System.Collections.Generic;
 
-using PokeD.Core.Interfaces;
-using PokeD.Core.Packets;
-using PokeD.Core.Wrappers;
+using Aragas.Core.IO;
+using Aragas.Core.Packets;
+using Aragas.Core.Wrappers;
 
-using PokeD.ServerProxy.IO;
+using PokeD.Core.IO;
+using PokeD.Core.Packets;
+
 
 namespace PokeD.ServerProxy.Clients
 {
@@ -15,8 +16,8 @@ namespace PokeD.ServerProxy.Clients
         public string IP => Client.IP;
 
 
-        INetworkTCPClient Client { get; }
-        IPacketStream Stream { get; }
+        ITCPClient Client { get; }
+        P3DStream Stream { get; }
 
 
         readonly ServerProxy _proxy;
@@ -32,7 +33,7 @@ namespace PokeD.ServerProxy.Clients
 #endif
 
 
-        public P3DPlayer(INetworkTCPClient client, ServerProxy proxy)
+        public P3DPlayer(ITCPClient client, ServerProxy proxy)
         {
             Client = client;
             Stream = new P3DStream(Client);
@@ -69,13 +70,13 @@ namespace PokeD.ServerProxy.Clients
             int id;
             if (P3DPacket.TryParseID(data, out id))
             {
-                if (id >= PlayerResponse.Packets.Length)
+                if (id >= GamePacketResponses.Packets.Length)
                 {
                     Logger.Log(LogType.GlobalError, $"P3D Reading Error: Packet ID {id} is not correct, Packet Data: {data}.");
                     return;
                 }
 
-                var packet = PlayerResponse.Packets[id]();
+                var packet = GamePacketResponses.Packets[id]();
                 if (packet == null)
                 {
                     Logger.Log(LogType.GlobalError, $"P3D Reading Error: Packet is null. Packet ID {id}, Packet Data: {data}.");
@@ -106,7 +107,7 @@ namespace PokeD.ServerProxy.Clients
         }
 
 
-        public void PacketFromProxy(ProtobufPacket packet)
+        public void PacketFromProxy(ProtobufOriginPacket packet)
         {
 #if DEBUG
             FromProxy.Add(packet);

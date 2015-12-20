@@ -1,6 +1,6 @@
 ﻿using System;
 
-using PokeD.Core.Wrappers;
+using Aragas.Core.Wrappers;
 
 namespace PokeD.ServerProxy
 {

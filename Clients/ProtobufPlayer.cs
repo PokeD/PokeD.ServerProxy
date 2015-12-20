@@ -1,17 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
 
+using Aragas.Core.Data;
+using Aragas.Core.IO;
+using Aragas.Core.Packets;
+using Aragas.Core.Wrappers;
+
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Security;
 
 using PokeD.Core;
-using PokeD.Core.Interfaces;
+using PokeD.Core.IO;
 using PokeD.Core.Packets;
 using PokeD.Core.Packets.Encryption;
 using PokeD.Core.Packets.Server;
-using PokeD.Core.Wrappers;
 
-using PokeD.ServerProxy.IO;
+
 
 namespace PokeD.ServerProxy.Clients
 {
@@ -31,8 +35,8 @@ namespace PokeD.ServerProxy.Clients
         public string IP => Client.IP;
 
 
-        INetworkTCPClient Client { get; }
-        IPacketStream Stream { get; }
+        ITCPClient Client { get; }
+        PacketStream Stream { get; }
 
         JoinState State { get; set; }
 
@@ -50,10 +54,10 @@ namespace PokeD.ServerProxy.Clients
         // -- Debug -- //
 #endif
 
-        public ProtobufPlayer(INetworkTCPClient client, ServerProxy proxy)
+        public ProtobufPlayer(ITCPClient client, ServerProxy proxy)
         {
             Client = client;
-            Stream = new ProtobufStream(Client);
+            Stream = new ProtobufOriginStream(Client);
             _proxy = proxy;
         }
 
@@ -94,10 +98,10 @@ namespace PokeD.ServerProxy.Clients
 
             using (var reader = new ProtobufDataReader(data))
             {
-                var id = reader.ReadVarInt();
-                var origin = reader.ReadVarInt();
+                var id = reader.Read<VarInt>();
+                var origin = reader.Read<VarInt>();
 
-                if (id >= PlayerResponse.Packets.Length)
+                if (id >= GamePacketResponses.Packets.Length)
                 {
                     Logger.Log(LogType.GlobalError, $"Protobuf Reading Error: Packet ID {id} is not correct, Packet Data: {data}. Disconnecting from server.");
                     SendPacket(new KickedPacket { Reason = $"Packet ID {id} is not correct!" });
@@ -105,7 +109,7 @@ namespace PokeD.ServerProxy.Clients
                     return;
                 }
 
-                var packet = PlayerResponse.Packets[id]().ReadPacket(reader);
+                var packet = GamePacketResponses.Packets[id]().ReadPacket(reader) as ProtobufOriginPacket;
                 packet.Origin = origin;
 
 
@@ -116,15 +120,15 @@ namespace PokeD.ServerProxy.Clients
 #endif
             }
         }
-        private void HandlePacket(ProtobufPacket packet)
+        private void HandlePacket(ProtobufOriginPacket packet)
         {
-            switch ((PlayerPacketTypes) packet.ID)
+            switch ((GamePacketTypes) (int) packet.ID)
             {
-                case PlayerPacketTypes.JoiningGameResponse:
+                case GamePacketTypes.JoiningGameResponse:
                     HandleJoiningGameResponse((JoiningGameResponsePacket) packet);
                     break;
 
-                case PlayerPacketTypes.EncryptionRequest:
+                case GamePacketTypes.EncryptionRequest:
                     HandleEncryptionRequest((EncryptionRequestPacket) packet);
                     break;
 
@@ -172,7 +176,7 @@ namespace PokeD.ServerProxy.Clients
             if (State.HasFlag(JoinState.QueryPacketsEmpty))
                 goto SendPackets;
 
-            if ((PlayerPacketTypes) packet.ID == PlayerPacketTypes.ServerDataRequest)
+            if ((GamePacketTypes)(int) packet.ID == GamePacketTypes.ServerDataRequest)
             {
                 SendPacketDirect(packet);
                 return;

@@ -2,3 +2,6 @@
 	path = PokeD.Core
 	url = https://github.com/PokeD/PokeD.Core.git
 	branch = master
+[submodule "Aragas"]
+	path = Aragas
+	url = https://github.com/Aragas/Aragas.Core.git
